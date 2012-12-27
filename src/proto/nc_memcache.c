@@ -150,7 +150,9 @@ memcache_parse_req(struct msg *r)
         SW_NOREPLY,
         SW_AFTER_NOREPLY,
         SW_ALMOST_DONE,
-        SW_SENTINEL
+        SW_SENTINEL,
+        SW_SPACES_BEFORE_DELETE_EXPIRY,
+        SW_DELETE_EXPIRY
     } state;
 
     state = r->state;
@@ -332,7 +334,7 @@ memcache_parse_req(struct msg *r)
                 } else if (memcache_arithmetic(r)) {
                     state = SW_SPACES_BEFORE_NUM;
                 } else if (memcache_delete(r)) {
-                    state = SW_RUNTO_CRLF;
+                    state = SW_SPACES_BEFORE_DELETE_EXPIRY;
                 } else if (memcache_retrieval(r)) {
                     state = SW_SPACES_BEFORE_KEYS;
                 } else {
@@ -412,6 +414,39 @@ memcache_parse_req(struct msg *r)
                 /* expiry_end <- p - 1 */
                 r->token = NULL;
                 state = SW_SPACES_BEFORE_VLEN;
+            } else {
+                goto error;
+            }
+
+            break;
+
+        case SW_SPACES_BEFORE_DELETE_EXPIRY:
+            if (ch == CR) {
+                state = SW_ALMOST_DONE;
+                break;
+            } else if (ch != ' ') {
+                if (!isdigit(ch)) {
+                    goto error;
+                }
+                /* expiry_start <- p; expiry <- ch - '0' */
+                r->token = p;
+                state = SW_DELETE_EXPIRY;
+            }
+
+            break;
+
+        case SW_DELETE_EXPIRY:
+            if (isdigit(ch)) {
+                /* expiry <- expiry * 10 + (ch - '0') */
+                ;
+            } else if (ch == ' ') {
+                /* expiry_end <- p - 1 */
+                r->token = NULL;
+                state = SW_RUNTO_CRLF;
+            } else if (ch == CR) {
+                /* expiry_end <- p - 1 */
+                r->token = NULL;
+                state = SW_ALMOST_DONE;
             } else {
                 goto error;
             }
