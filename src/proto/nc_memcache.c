@@ -30,7 +30,7 @@
  * clients wouldn't need to use such long keys); the key must not include
  * control characters or whitespace.
  */
-#define MEMCACHE_MAX_KEY_LENGTH 250
+#define MEMCACHE_MAX_KEY_LENGTH 16384
 
 /*
  * Return true, if the memcache command is a storage command, otherwise
